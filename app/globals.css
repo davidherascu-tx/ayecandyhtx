@@ -1,26 +1,222 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Brand palette — black lacquer + gold leaf, taken from the logo and menus. */
+  --color-ink: #08070a;
+  --color-ink-2: #0f0d11;
+  --color-ink-3: #171319;
+  --color-line: #2a2330;
+
+  --color-gold: #c9a227;
+  --color-gold-soft: #e8d190;
+  --color-gold-deep: #8a6d1c;
+
+  --color-cream: #f6f1e6;
+  --color-muted: #a89f92;
+
+  /* Storefront awning blue — used sparingly as a secondary accent. */
+  --color-awning: #7fb2c4;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display-family);
+  --font-sans: var(--font-body-family);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-cream);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-gold);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---------- Age gate ---------- */
+/* Deliberately unlayered: unlayered rules outrank every Tailwind layer, so the
+   `display: none` below wins against the `flex` utility on the overlay itself.
+   The inline script in the root layout stamps data-age-ok before first paint,
+   so a returning, already-verified guest never sees the gate flash. */
+#age-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+html[data-age-ok="1"] #age-gate {
+  display: none;
+}
+
+html:not([data-age-ok="1"]) body {
+  overflow: hidden;
+}
+
+@layer components {
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.85rem 1.9rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1;
+    transition:
+      background-color 200ms ease,
+      color 200ms ease,
+      border-color 200ms ease,
+      transform 200ms ease;
+  }
+
+  .btn:active {
+    transform: translateY(1px);
+  }
+
+  .btn-gold {
+    background-image: linear-gradient(
+      110deg,
+      var(--color-gold-deep),
+      var(--color-gold) 35%,
+      var(--color-gold-soft) 55%,
+      var(--color-gold) 75%,
+      var(--color-gold-deep)
+    );
+    color: #17130a;
+    border: 1px solid var(--color-gold-soft);
+    box-shadow: 0 10px 30px -14px rgba(201, 162, 39, 0.85);
+  }
+
+  .btn-gold:hover {
+    filter: brightness(1.08);
+  }
+
+  .btn-outline {
+    border: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
+    color: var(--color-gold-soft);
+    background-color: color-mix(in srgb, var(--color-ink) 60%, transparent);
+  }
+
+  .btn-outline:hover {
+    border-color: var(--color-gold);
+    color: var(--color-ink);
+    background-color: var(--color-gold);
+  }
+
+  /* ---------- Decorative bits ---------- */
+  .eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+  }
+
+  .rule {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--color-gold);
+  }
+
+  .rule::before,
+  .rule::after {
+    content: "";
+    height: 1px;
+    width: min(5rem, 18vw);
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in srgb, var(--color-gold) 70%, transparent)
+    );
+  }
+
+  .rule::after {
+    background-image: linear-gradient(
+      to left,
+      transparent,
+      color-mix(in srgb, var(--color-gold) 70%, transparent)
+    );
+  }
+
+  .panel {
+    border: 1px solid color-mix(in srgb, var(--color-gold) 22%, transparent);
+    background-image: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-ink-3) 92%, transparent),
+      var(--color-ink)
+    );
+  }
+
+  .gold-text {
+    background-image: linear-gradient(
+      100deg,
+      var(--color-gold-deep),
+      var(--color-gold-soft) 45%,
+      var(--color-gold) 70%,
+      var(--color-gold-deep)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  .animate-rise {
+    animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-fade {
+    animation: fade 900ms ease both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-rise,
+  .animate-fade {
+    animation: none;
+  }
 }

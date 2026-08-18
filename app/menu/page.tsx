@@ -1,18 +1,22 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import JsonLd from "@/app/components/json-ld";
 import MenuViewer from "@/app/components/menu-viewer";
 import PageHeader from "@/app/components/page-header";
+import { breadcrumbJsonLd, pageMetadata } from "@/app/lib/seo";
 import { happyHours, site } from "@/app/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Menu",
   description:
-    "Signature cocktails and the wine list at Aye Candy, the speakeasy on Bingle Rd in Spring Branch, Houston.",
-};
+    "Signature cocktails and the wine list at Aye Candy, the speakeasy on Bingle Rd in Spring Branch, Houston. Happy hour Tuesday and Wednesday, 5–7 PM.",
+  path: "/menu",
+  imageAlt: "A signature cocktail from the Aye Candy menu",
+});
 
 export default function MenuPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd("Menu", "/menu")} />
       <PageHeader
         eyebrow="Cocktails & Wine"
         title="The Menu"

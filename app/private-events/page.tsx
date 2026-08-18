@@ -1,17 +1,21 @@
-import type { Metadata } from "next";
 import Image from "next/image";
+import JsonLd from "@/app/components/json-ld";
 import PageHeader from "@/app/components/page-header";
+import { breadcrumbJsonLd, pageMetadata } from "@/app/lib/seo";
 import { eventContact, eventPackages, site } from "@/app/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Private Events",
   description:
     "Platinum, Gold, Silver and Bronze private event packages at Aye Candy — full or semi-private venue rental for 15 to 100 guests in Spring Branch, Houston.",
-};
+  path: "/private-events",
+  imageAlt: "A private event set up in the Aye Candy lounge",
+});
 
 export default function PrivateEventsPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd("Private Events", "/private-events")} />
       <PageHeader
         eyebrow="Book the room"
         title="Private Events"

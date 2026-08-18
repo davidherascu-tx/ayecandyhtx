@@ -1,18 +1,22 @@
-import type { Metadata } from "next";
 import GalleryGrid from "@/app/components/gallery-grid";
+import JsonLd from "@/app/components/json-ld";
 import PageHeader from "@/app/components/page-header";
 import { galleryPhotos } from "@/app/lib/gallery";
+import { breadcrumbJsonLd, pageMetadata } from "@/app/lib/seo";
 import { site } from "@/app/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Gallery",
   description:
-    "Inside Aye Candy — the gold back bar, candlelit brick walls, signature cocktails and the nights that fill the room.",
-};
+    "Inside Aye Candy — the gold back bar, candlelit brick walls, signature cocktails and the nights that fill the room on Bingle Rd in Spring Branch, Houston.",
+  path: "/gallery",
+  imageAlt: "The candlelit bar room at Aye Candy",
+});
 
 export default function GalleryPage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd("Gallery", "/gallery")} />
       <PageHeader
         eyebrow="Inside the room"
         title="Gallery"

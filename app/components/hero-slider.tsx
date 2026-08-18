@@ -108,11 +108,19 @@ export default function HeroSlider() {
       ))}
 
       <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-end px-5 pb-20 sm:px-8 sm:pb-24">
+        {/* The visible headline belongs to whichever slide is showing, so it
+            cannot also be the page heading — it would change every 6.5 seconds
+            and a crawler would record whichever slide it happened to render.
+            This names the page once and holds still. */}
+        <h1 className="sr-only">
+          {site.legalName} — cocktail bar in Spring Branch, Houston
+        </h1>
+
         <div key={index} className="animate-rise max-w-2xl">
           <p className="eyebrow">{slides[index].eyebrow}</p>
-          <h1 className="font-display mt-4 text-4xl leading-[1.05] font-semibold text-balance sm:text-6xl lg:text-7xl">
+          <p className="font-display mt-4 text-4xl leading-[1.05] font-semibold text-balance sm:text-6xl lg:text-7xl">
             <span className="gold-text">{slides[index].title}</span>
-          </h1>
+          </p>
 
           {slides[index].body ? (
             <p className="mt-5 max-w-lg text-base leading-relaxed text-cream/80 sm:text-lg">

@@ -24,6 +24,15 @@ export const site = {
     instagram: "https://www.instagram.com/ayecandyhtx",
   },
   minimumAge: 21,
+  /** Price band for the schema.org listing — "$$" reads as mid-range. */
+  priceRange: "$$",
+  /**
+   * Google Search Console verification token: the `content` value Google shows
+   * you under the "HTML tag" verification method. Paste it between the quotes,
+   * or set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION in the environment instead.
+   * While this is empty no verification tag is rendered at all.
+   */
+  googleSiteVerification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ?? "",
 } as const;
 
 /**
@@ -46,11 +55,37 @@ export const AGE_STORAGE_KEY = "ayecandy:age-verified";
  */
 export const AGE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-export type Hours = { days: string; time: string; closed?: boolean };
+export type Hours = {
+  days: string;
+  time: string;
+  closed?: boolean;
+  /**
+   * Machine-readable mirror of `days` + `time`, used for the schema.org
+   * openingHoursSpecification in the JSON-LD. Omitted on closed days.
+   * Keep it in sync with the display strings — Google reads this one.
+   */
+  schema?: { dayOfWeek: string[]; opens: string; closes: string };
+};
 
 export const openHours: Hours[] = [
-  { days: "Tuesday – Thursday", time: "5 PM – 12 AM" },
-  { days: "Friday – Saturday", time: "5 PM – 2 AM" },
+  {
+    days: "Tuesday – Thursday",
+    time: "5 PM – 12 AM",
+    schema: {
+      dayOfWeek: ["Tuesday", "Wednesday", "Thursday"],
+      opens: "17:00",
+      closes: "00:00",
+    },
+  },
+  {
+    days: "Friday – Saturday",
+    time: "5 PM – 2 AM",
+    schema: {
+      dayOfWeek: ["Friday", "Saturday"],
+      opens: "17:00",
+      closes: "02:00",
+    },
+  },
   { days: "Sunday", time: "Closed", closed: true },
 ];
 
@@ -60,8 +95,8 @@ export const happyHours: Hours[] = [
 
 export const music = {
   title: "Love the Tunes",
-  lead: "DJ",
-  detail: "Friday’s and Saturday’s",
+  lead: "Live Music",
+  detail: "Every Other Saturday",
 };
 
 export const navLinks = [

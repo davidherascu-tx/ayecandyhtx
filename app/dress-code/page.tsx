@@ -1,13 +1,16 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import JsonLd from "@/app/components/json-ld";
 import PageHeader from "@/app/components/page-header";
+import { breadcrumbJsonLd, pageMetadata } from "@/app/lib/seo";
 import { site } from "@/app/lib/site";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Dress Code",
   description:
-    "The dress code at Aye Candy — smart casual and elevated. What to wear, what to leave at home, and the 21+ ID policy.",
-};
+    "The dress code at Aye Candy — smart casual and elevated. What to wear, what to leave at home, and the 21+ ID policy for our Spring Branch speakeasy.",
+  path: "/dress-code",
+  imageAlt: "Guests dressed for a night at Aye Candy",
+});
 
 /**
  * PLACEHOLDER COPY — written to match an upscale speakeasy so the page is
@@ -33,6 +36,7 @@ const notPermitted = [
 export default function DressCodePage() {
   return (
     <>
+      <JsonLd data={breadcrumbJsonLd("Dress Code", "/dress-code")} />
       <PageHeader
         eyebrow="House rules"
         title="Dress Code"

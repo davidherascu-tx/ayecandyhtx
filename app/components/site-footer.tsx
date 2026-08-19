@@ -18,6 +18,7 @@ export default function SiteFooter() {
             alt={site.name}
             width={470}
             height={314}
+            sizes="120px"
             className="h-20 w-auto"
           />
           <p className="mt-5 max-w-xs text-sm leading-relaxed text-muted">
@@ -139,7 +140,7 @@ export default function SiteFooter() {
       </div>
 
       <div className="border-t border-line/60">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 text-center text-xs text-muted/70 sm:flex-row sm:px-8 sm:text-left">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 text-center text-xs text-muted/80 sm:flex-row sm:px-8 sm:text-left">
           <p>
             © {new Date().getFullYear()} {site.legalName}. All rights reserved.
           </p>

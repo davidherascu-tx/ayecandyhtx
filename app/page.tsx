@@ -29,7 +29,7 @@ export default function Home() {
               {openHours.map((h) => (
                 <li key={h.days} className="text-sm">
                   <span className="block text-cream/85">{h.days}</span>
-                  <span className={h.closed ? "text-muted/70" : "text-gold-soft"}>
+                  <span className={h.closed ? "text-muted/80" : "text-gold-soft"}>
                     {h.time}
                   </span>
                 </li>

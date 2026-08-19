@@ -34,6 +34,7 @@ export default function SiteHeader() {
             width={470}
             height={314}
             priority
+            sizes="(min-width: 640px) 84px, 72px"
             className="h-12 w-auto sm:h-14"
           />
         </Link>

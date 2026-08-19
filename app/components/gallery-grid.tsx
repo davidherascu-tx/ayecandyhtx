@@ -78,7 +78,7 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
         ))}
       </ul>
 
-      <p aria-live="polite" className="mt-8 text-center text-xs tracking-[0.22em] text-muted/70 uppercase">
+      <p aria-live="polite" className="mt-8 text-center text-xs tracking-[0.22em] text-muted/80 uppercase">
         Showing {shown.length} of {photos.length}
       </p>
 
@@ -157,7 +157,7 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
             </div>
             <figcaption className="mt-4 max-w-lg text-center text-xs leading-relaxed text-muted">
               {photos[open].alt}
-              <span className="mt-1 block text-muted/60">
+              <span className="mt-1 block text-muted/80">
                 {open + 1} / {photos.length}
               </span>
             </figcaption>

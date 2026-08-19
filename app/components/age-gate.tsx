@@ -77,6 +77,9 @@ export default function AgeGate() {
           width={470}
           height={314}
           priority
+          // Renders 144px wide (168px from sm up). Without `sizes` Next serves
+          // a 1080px-wide file for a slot a seventh that size.
+          sizes="(min-width: 640px) 168px, 144px"
           className="mx-auto h-24 w-auto sm:h-28"
         />
 
@@ -108,7 +111,7 @@ export default function AgeGate() {
               </button>
             </div>
 
-            <p className="mt-7 text-[0.68rem] tracking-[0.25em] text-muted/70 uppercase">
+            <p className="mt-7 text-[0.68rem] tracking-[0.25em] text-muted/80 uppercase">
               Drink responsibly · Never drink and drive
             </p>
           </>

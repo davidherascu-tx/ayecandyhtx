@@ -1,27 +1,56 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { GalleryPhoto } from "@/app/lib/gallery";
 
 /** Photos shown before the first "Load more", and per click after that. */
 const PAGE_SIZE = 16;
-/** Horizontal distance (px) a swipe must cover to change photos. */
-const SWIPE_MIN = 48;
+/** Fraction of the viewer's width a drag must cover to change photos. */
+const SWIPE_RATIO = 0.18;
+/** A short, fast flick counts too: px/ms, over at least this many px. */
+const FLICK_SPEED = 0.35;
+const FLICK_MIN = 24;
 /** Slop before a touch counts as a horizontal drag instead of a tap. */
-const DRAG_SLOP = 10;
+const DRAG_SLOP = 8;
+/** Slide animation; the commit timer matches it. */
+const SLIDE_MS = 280;
+const EASE = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+/** The track holds prev/current/next, so the current photo sits one over. */
+const CENTER = "translate3d(-100%, 0, 0)";
+const SLOTS = [-1, 0, 1];
 
 export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [open, setOpen] = useState<number | null>(null);
-  const [drag, setDrag] = useState(0);
-  const touch = useRef<{
-    x: number;
-    y: number;
-    dx: number;
-    dragging: boolean;
-  } | null>(null);
+  const isOpen = open !== null;
+
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const gesture = useRef({
+    active: false,
+    horizontal: false,
+    x: 0,
+    y: 0,
+    dx: 0,
+    at: 0,
+    vx: 0,
+  });
+  /** True while a slide is animating to its committed photo. */
+  const busy = useRef(false);
+  /** The photo that animation is heading to, relative to the current one. */
+  const pending = useRef(0);
+  /** True when the touch that just ended was a swipe, not a tap. */
   const swiped = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const move = useCallback(
     (delta: number) =>
@@ -31,12 +60,73 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
     [photos.length],
   );
 
+  const close = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    pending.current = 0;
+    busy.current = false;
+    setOpen(null);
+  }, []);
+
+  /** Land the photo a running slide is heading to, right now. */
+  const commit = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const dir = pending.current;
+    pending.current = 0;
+    busy.current = false;
+    // Sync, so the layout effect re-centres the track before anything paints
+    // or a follow-up gesture reads it.
+    if (dir) flushSync(() => move(dir));
+  }, [move]);
+
+  /** Animate to a neighbour (±1) or back to centre (0), then commit the index. */
+  const settle = useCallback(
+    (dir: number) => {
+      const track = trackRef.current;
+      if (!track) return;
+      track.style.transition = `transform ${SLIDE_MS}ms ${EASE}`;
+      track.style.transform =
+        dir === 0
+          ? CENTER
+          : `translate3d(${dir > 0 ? "-200%" : "0%"}, 0, 0)`;
+      if (dir === 0) return;
+      busy.current = true;
+      pending.current = dir;
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(commit, SLIDE_MS);
+    },
+    [commit],
+  );
+
+  /** Interrupting a running slide lands it first, so the next starts centred. */
+  const nudge = useCallback(
+    (dir: number) => {
+      if (busy.current) commit();
+      settle(dir);
+    },
+    [commit, settle],
+  );
+
+  // Re-centre without a transition once the new photo is in the track.
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    track.style.transition = "none";
+    track.style.transform = CENTER;
+    track.getBoundingClientRect(); // flush, so the next drag starts from centre
+  }, [open]);
+
   useEffect(() => {
-    if (open === null) return;
+    if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(null);
-      if (e.key === "ArrowRight") move(1);
-      if (e.key === "ArrowLeft") move(-1);
+      if (e.key === "Escape") close();
+      if (e.key === "ArrowRight") nudge(1);
+      if (e.key === "ArrowLeft") nudge(-1);
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -44,42 +134,103 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, move]);
+  }, [isOpen, close, nudge]);
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    touch.current = { x: t.clientX, y: t.clientY, dx: 0, dragging: false };
-    swiped.current = false;
-    setDrag(0);
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    const surface = dialogRef.current;
+    if (!surface) return;
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    const start = touch.current;
-    if (!start) return;
-    const t = e.touches[0];
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
-    if (!start.dragging && Math.abs(dx) > DRAG_SLOP && Math.abs(dx) > Math.abs(dy)) {
-      start.dragging = true;
-    }
-    if (start.dragging) {
-      // The ref, not the state, decides the swipe: a flick can end before
-      // React commits the last move's render.
-      start.dx = dx;
-      setDrag(dx);
-    }
-  };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      // Grabbing a photo mid-slide lands it, so the drag starts from centre.
+      if (busy.current) commit();
+      const t = e.touches[0];
+      gesture.current = {
+        active: true,
+        horizontal: false,
+        x: t.clientX,
+        y: t.clientY,
+        dx: 0,
+        at: e.timeStamp,
+        vx: 0,
+      };
+      swiped.current = false;
+    };
 
-  const onTouchEnd = () => {
-    const start = touch.current;
-    touch.current = null;
-    if (start?.dragging) {
-      // A swipe is not a tap — keep the backdrop click from closing the viewer.
+    const onMove = (e: TouchEvent) => {
+      const g = gesture.current;
+      if (!g.active) return;
+      const t = e.touches[0];
+      const dx = t.clientX - g.x;
+      const dy = t.clientY - g.y;
+
+      if (!g.horizontal) {
+        if (Math.abs(dy) > DRAG_SLOP && Math.abs(dy) >= Math.abs(dx)) {
+          g.active = false;
+          return;
+        }
+        if (Math.abs(dx) <= DRAG_SLOP) return;
+        g.horizontal = true;
+        const track = trackRef.current;
+        if (track) {
+          track.style.transition = "none";
+          track.style.willChange = "transform";
+        }
+      }
+
+      // Own the gesture: no rubber-banding, no iOS edge-swipe mid-drag.
+      e.preventDefault();
+      const dt = e.timeStamp - g.at;
+      if (dt > 0) g.vx = (dx - g.dx) / dt;
+      g.at = e.timeStamp;
+      g.dx = dx;
+      // touchmove is already frame-aligned, so paint straight to the DOM:
+      // no re-render, and no extra frame of rAF latency.
+      const track = trackRef.current;
+      if (track) {
+        track.style.transform = `translate3d(calc(-100% + ${dx}px), 0, 0)`;
+      }
+    };
+
+    const onEnd = () => {
+      const g = gesture.current;
+      if (!g.active) return;
+      g.active = false;
+      const track = trackRef.current;
+      if (track) track.style.willChange = "";
+      if (!g.horizontal) return;
+      // A swipe is not a tap — keep the trailing click from closing the viewer.
       swiped.current = true;
-      if (Math.abs(start.dx) > SWIPE_MIN) move(start.dx < 0 ? 1 : -1);
-    }
-    setDrag(0);
-  };
+      const width = viewportRef.current?.clientWidth || 1;
+      const far = Math.abs(g.dx) > width * SWIPE_RATIO;
+      // Only a flick that is still travelling the way the drag went counts,
+      // so pulling a photo back to centre does not fling it onward.
+      const flick =
+        Math.abs(g.vx) > FLICK_SPEED &&
+        Math.abs(g.dx) > FLICK_MIN &&
+        Math.sign(g.vx) === Math.sign(g.dx);
+      settle(far || flick ? (g.dx < 0 ? 1 : -1) : 0);
+    };
+
+    surface.addEventListener("touchstart", onStart, { passive: true });
+    surface.addEventListener("touchmove", onMove, { passive: false });
+    surface.addEventListener("touchend", onEnd, { passive: true });
+    surface.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      surface.removeEventListener("touchstart", onStart);
+      surface.removeEventListener("touchmove", onMove);
+      surface.removeEventListener("touchend", onEnd);
+      surface.removeEventListener("touchcancel", onEnd);
+    };
+  }, [isOpen, commit, settle]);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   if (photos.length === 0) {
     return (
@@ -143,6 +294,7 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
 
       {open !== null ? (
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-label={photos[open].alt}
@@ -151,17 +303,14 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
               swiped.current = false;
               return;
             }
-            setOpen(null);
+            close();
           }}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onTouchCancel={onTouchEnd}
-          className="animate-fade fixed inset-0 z-60 flex touch-pan-y items-center justify-center overflow-hidden bg-ink/96 p-4 backdrop-blur-sm sm:p-10"
+          style={{ touchAction: "pan-y pinch-zoom" }}
+          className="animate-fade fixed inset-0 z-60 flex items-center justify-center overflow-hidden bg-ink p-4 sm:p-10"
         >
           <button
             type="button"
-            onClick={() => setOpen(null)}
+            onClick={close}
             className="absolute top-5 right-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-gold/40 bg-ink/70 text-gold"
           >
             <span className="sr-only">Close</span>
@@ -174,7 +323,7 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              move(-1);
+              nudge(-1);
             }}
             className="absolute left-3 z-20 hidden h-12 w-12 items-center justify-center rounded-full border border-gold/40 bg-ink/70 text-gold sm:left-8 sm:flex"
           >
@@ -188,7 +337,7 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              move(1);
+              nudge(1);
             }}
             className="absolute right-3 z-20 hidden h-12 w-12 items-center justify-center rounded-full border border-gold/40 bg-ink/70 text-gold sm:right-8 sm:flex"
           >
@@ -201,21 +350,40 @@ export default function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
           <figure
             onClick={(e) => e.stopPropagation()}
             className="flex w-full max-w-3xl flex-col items-center"
-            style={{
-              transform: `translateX(${drag}px)`,
-              transition: drag === 0 ? "transform 220ms ease-out" : "none",
-            }}
           >
-            <div className="relative h-[72svh] w-full">
-              <Image
-                src={photos[open].src}
-                alt={photos[open].alt}
-                fill
-                priority
-                draggable={false}
-                sizes="(max-width: 1024px) 92vw, 768px"
-                className="rounded-xl object-contain select-none"
-              />
+            <div
+              ref={viewportRef}
+              className="relative h-[72svh] w-full overflow-hidden"
+            >
+              <div
+                ref={trackRef}
+                className="flex h-full w-full"
+                style={{ transform: CENTER }}
+              >
+                {SLOTS.map((off) => {
+                  const i = (open + off + photos.length) % photos.length;
+                  const photo = photos[i];
+                  return (
+                    <div
+                      // Photo keys let React move the slides instead of
+                      // reloading them; too few photos to be unique, so fall
+                      // back to the slot.
+                      key={photos.length >= SLOTS.length ? photo.src : `slot${off}`}
+                      className="relative h-full w-full shrink-0"
+                    >
+                      <Image
+                        src={photo.src}
+                        alt={off === 0 ? photo.alt : ""}
+                        fill
+                        draggable={false}
+                        loading="eager"
+                        sizes="(max-width: 1024px) 92vw, 768px"
+                        className="rounded-xl object-contain select-none"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <figcaption className="mt-4 max-w-lg text-center text-xs leading-relaxed text-muted">
               {photos[open].alt}
